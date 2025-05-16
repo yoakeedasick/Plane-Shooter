@@ -27,6 +27,10 @@ enemy_img = pygame.transform.scale(enemy_img, (60, 60))
 bullet_img = pygame.image.load("assets-2/Bullet_BTN.png")
 bullet_img = pygame.transform.scale(bullet_img, (30, 25))
 
+#Load hình coin
+coin_img = pygame.image.load("assets-2/coin.png")
+coin_img = pygame.transform.scale(coin_img, (12,12))
+
 # Load hình ảnh nút
 start_btn_img = pygame.image.load("assets-2/Start_BTN.png")
 replay_btn_img = pygame.image.load("assets-2/Replay_BTN.png")
@@ -50,6 +54,11 @@ score_font = pygame.font.Font(None, 36)  # Font cho điểm số
 score = 0
 high_score = 0
 
+# Vàng, mana
+coins_score = 0
+total_coins = 0
+mana = 0
+
 # File lưu điểm cao nhất
 SCORE_FILE = "high_score.json"
 
@@ -63,10 +72,27 @@ def load_high_score():
     except:
         high_score = 0
 
+def load_total_coins():
+    global total_coins
+    try:
+        if os.path.exists(SCORE_FILE):
+            with open(SCORE_FILE, 'r') as f:
+                data = json.load(f)
+                total_coins = data.get('total_coins', 0)
+    except:
+        total_coins = 0
+
+def add_total_coin():
+    try:
+        with open(SCORE_FILE, 'w') as f:
+            json.dump({'high_score': high_score , 'total_coins' : total_coins + coins_score}, f)
+    except:
+        pass
+
 def save_high_score():
     try:
         with open(SCORE_FILE, 'w') as f:
-            json.dump({'high_score': high_score}, f)
+            json.dump({'high_score': high_score, 'total_coins' : total_coins + coins_score}, f)
     except:
         pass
 
@@ -134,6 +160,20 @@ class Bullet(pygame.sprite.Sprite):
         self.rect.y += self.speed
         if self.rect.bottom < 0:
             self.kill()
+# Coins
+class Coin(pygame.sprite.Sprite):
+    def __init__(self, val, x ,y):
+        super().__init__()
+        self.image = coin_img.convert_alpha()
+        self.rect = self.image.get_rect()
+        self.rect.x = x
+        self.rect.y = y
+        self.val = val
+        self.speed = 0.5
+    def update(self):
+        self.rect.y += self.speed
+        if self.rect.y > HEIGHT:
+            all_sprites.remove(self)
 
 # Kẻ địch
 class Enemy(pygame.sprite.Sprite):
@@ -144,6 +184,8 @@ class Enemy(pygame.sprite.Sprite):
         self.rect.x = random.randrange(WIDTH - self.rect.width)
         self.rect.y = random.randrange(-100, -40)
         self.speedy = random.randrange(1, 4)
+        self.coins = random.randint(1,100)
+        self.manas = random.randint(1,3)
 
     def update(self):
         self.rect.y += self.speedy
@@ -156,7 +198,7 @@ class Enemy(pygame.sprite.Sprite):
 all_sprites = pygame.sprite.Group()
 enemies = pygame.sprite.Group()
 bullets = pygame.sprite.Group()
-
+coins = pygame.sprite.Group()
 # Tạo người chơi
 player = Player()
 all_sprites.add(player)
@@ -174,6 +216,8 @@ def game_over_screen():
     if score > high_score:
         high_score = score
         save_high_score()
+    # Cập nhật coins
+    add_total_coin()
     
     screen.blit(bg_img, (0, 0))
     # Vẽ YOU LOSE
@@ -243,8 +287,10 @@ def start_screen():
     screen.blit(header1_img, (WIDTH//2 - header1_img.get_width()//2, HEIGHT//2 - 180))
     # Hiển thị điểm cao nhất
     high_score_text = score_font.render(f"High Score: {high_score}", True, WHITE)
-    screen.blit(high_score_text, (WIDTH//2 - high_score_text.get_width()//2, HEIGHT//2 - 80))
-    
+    screen.blit(high_score_text, (WIDTH//2 - high_score_text.get_width()//2, HEIGHT//2 - 60))
+    # Hiển thị số coin đang có
+    total_coins_text = score_font.render(f"Total coins: {total_coins}", True, WHITE)
+    screen.blit(total_coins_text, (WIDTH//2 - high_score_text.get_width()//2, HEIGHT//2 - 100))
     # Tạo các nút
     start_button = Button(WIDTH//2 - 100, HEIGHT//2, 200, 50, start_btn_img)
     exit_button = Button(WIDTH//2 - 100, HEIGHT//2 + 70, 200, 50, exit_btn_img)
@@ -276,6 +322,8 @@ last_shot = 0
 
 # Load điểm cao nhất khi bắt đầu game
 load_high_score()
+# Load total coins
+load_total_coins()
 
 # Hiển thị màn hình bắt đầu
 start_screen()
@@ -305,16 +353,23 @@ while running:
     all_sprites.update()
 
     # Kiểm tra va chạm giữa đạn và kẻ địch
-    hits = pygame.sprite.groupcollide(enemies, bullets, True, True)
-    for hit in hits:
+    hits_bullet = pygame.sprite.groupcollide(enemies, bullets, True, True)
+    for hit in hits_bullet:
         score += 1  # Tăng điểm khi bắn trúng
         enemy = Enemy()
-        all_sprites.add(enemy)
+        coin = Coin(hit.coins, hit.rect.x, hit.rect.y)
+        all_sprites.add(enemy, coin)
         enemies.add(enemy)
+        coins.add(coin)
+
+    # Kiểm tra va chạm player và coin
+    hits_coin = pygame.sprite.spritecollide(player, coins, True)
+    for hit in hits_coin:
+        coins_score += hit.val
 
     # Kiểm tra va chạm giữa người chơi và kẻ địch
-    hits = pygame.sprite.spritecollide(player, enemies, False)
-    if hits:
+    hits_enemy = pygame.sprite.spritecollide(player, enemies, False)
+    if hits_enemy:
         game_over_screen()
         reset_game()
 
@@ -324,6 +379,8 @@ while running:
     
     # Hiển thị điểm số
     score_text = score_font.render(f"Score: {score}", True, WHITE)
+    coins_score_text = score_font.render(f"Coins: {coins_score}", True, WHITE)
+    screen.blit(coins_score_text, (10,50))
     screen.blit(score_text, (10, 10))
     
     pygame.display.flip()

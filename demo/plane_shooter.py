@@ -27,6 +27,14 @@ enemy_img = pygame.transform.scale(enemy_img, (60, 60))
 bullet_img = pygame.image.load("assets-2/Bullet_BTN.png")
 bullet_img = pygame.transform.scale(bullet_img, (30, 25))
 
+# Load hình tên lửa
+rocket_img = pygame.image.load("assets-2/Rocket.png")
+rocket_img = pygame.transform.scale(rocket_img, (15, 40))
+
+# Load hình nâng cấp
+upgrade_img = pygame.image.load("assets-2/Upgrade.png")
+upgrade_img = pygame.transform.scale(upgrade_img, (30, 40))
+
 #Load hình Cristal
 cristal_img = pygame.image.load("assets-2/Cristal_Icon.png")
 cristal_img = pygame.transform.scale(cristal_img, (17, 27))
@@ -129,6 +137,8 @@ class Player(pygame.sprite.Sprite):
         self.rect.centerx = WIDTH // 2
         self.rect.bottom = HEIGHT - 10
         self.speed = 8
+        self.left_rockets = 0  # Số tên lửa bên trái
+        self.right_rockets = 0  # Số tên lửa bên phải
 
     def update(self):
         # Lấy vị trí chuột
@@ -145,6 +155,24 @@ class Player(pygame.sprite.Sprite):
         bullet = Bullet(self.rect.centerx, self.rect.top)
         all_sprites.add(bullet)
         bullets.add(bullet)
+        
+        # Bắn tên lửa liên tục nếu có
+        if self.left_rockets > 0:
+            rocket = Rocket(self.rect.left + 20, self.rect.top)
+            all_sprites.add(rocket)
+            bullets.add(rocket)
+            
+        if self.right_rockets > 0:
+            rocket = Rocket(self.rect.right - 20, self.rect.top)
+            all_sprites.add(rocket)
+            bullets.add(rocket)
+
+    def add_rocket(self):
+        # Thêm tên lửa vào bên có ít tên lửa hơn
+        if self.left_rockets <= self.right_rockets and self.left_rockets < 1:
+            self.left_rockets += 1
+        elif self.right_rockets < 1:
+            self.right_rockets += 1
 
 # Đạn
 class Bullet(pygame.sprite.Sprite):
@@ -160,6 +188,37 @@ class Bullet(pygame.sprite.Sprite):
         self.rect.y += self.speed
         if self.rect.bottom < 0:
             self.kill()
+
+# Tên lửa
+class Rocket(pygame.sprite.Sprite):
+    def __init__(self, x, y):
+        super().__init__()
+        self.image = rocket_img.convert_alpha()
+        self.rect = self.image.get_rect()
+        self.rect.centerx = x
+        self.rect.bottom = y
+        self.speed = -12
+
+    def update(self):
+        self.rect.y += self.speed
+        if self.rect.bottom < 0:
+            self.kill()
+
+# Vật phẩm nâng cấp
+class Upgrade(pygame.sprite.Sprite):
+    def __init__(self, x, y):
+        super().__init__()
+        self.image = upgrade_img.convert_alpha()
+        self.rect = self.image.get_rect()
+        self.rect.x = x
+        self.rect.y = y
+        self.speed = 0.5
+
+    def update(self):
+        self.rect.y += self.speed
+        if self.rect.y > HEIGHT:
+            self.kill()
+
 # Cristal
 class Cristal(pygame.sprite.Sprite):
     def __init__(self, val, x ,y):
@@ -182,7 +241,7 @@ class Enemy(pygame.sprite.Sprite):
         self.image = enemy_img.convert_alpha()
         self.rect = self.image.get_rect()
         self.rect.x = random.randrange(WIDTH - self.rect.width)
-        self.rect.y = random.randrange(-100, -40)
+        self.rect.y = random.randrange(-150, -60)
         self.speedy = random.randrange(1, 4)
         self.coins = random.randint(1,100)
         self.manas = random.randint(1,3)
@@ -191,7 +250,7 @@ class Enemy(pygame.sprite.Sprite):
         self.rect.y += self.speedy
         if self.rect.top > HEIGHT:
             self.rect.x = random.randrange(WIDTH - self.rect.width)
-            self.rect.y = random.randrange(-100, -40)
+            self.rect.y = random.randrange(-150, -60)
             self.speedy = random.randrange(1, 4)
 
 # Tạo sprite groups
@@ -199,6 +258,8 @@ all_sprites = pygame.sprite.Group()
 enemies = pygame.sprite.Group()
 bullets = pygame.sprite.Group()
 cristal = pygame.sprite.Group()
+upgrades = pygame.sprite.Group()  # Thêm group cho upgrade
+
 # Tạo người chơi
 player = Player()
 all_sprites.add(player)
@@ -227,9 +288,13 @@ def game_over_screen():
     score_text = score_font.render(f"Score: {score}", True, WHITE)
     screen.blit(score_text, (WIDTH//2 - score_text.get_width()//2, HEIGHT//2 - 80))
     
+    # Hiển thị số cristal đã thu thập trong màn này
+    cristal_text = score_font.render(f"Cristal: {cristal_score}", True, WHITE)
+    screen.blit(cristal_text, (WIDTH//2 - cristal_text.get_width()//2, HEIGHT//2 - 30))
+    
     # Hiển thị điểm cao nhất
     high_score_text = score_font.render(f"High Score: {high_score}", True, WHITE)
-    screen.blit(high_score_text, (WIDTH//2 - high_score_text.get_width()//2, HEIGHT//2 - 30))
+    screen.blit(high_score_text, (WIDTH//2 - high_score_text.get_width()//2, HEIGHT//2 + 20))
     
     # Các nút
     replay_w, replay_h = 60, 50
@@ -237,7 +302,7 @@ def game_over_screen():
     button_gap = 20
     total_width = replay_w + button_gap + exit_w
     start_x = WIDTH//2 - total_width//2
-    y = HEIGHT//2 + 30
+    y = HEIGHT//2 + 80
     
     restart_button = Button(start_x, y, replay_w, replay_h, replay_btn_img)
     quit_button = Button(start_x + replay_w + button_gap, y, exit_w, exit_h, exit_btn_img)
@@ -261,15 +326,17 @@ def game_over_screen():
         pygame.display.flip()
 
 def reset_game():
-    global all_sprites, enemies, bullets, player, score
+    global all_sprites, enemies, bullets, player, score, cristal_score
     
-    # Reset điểm số
+    # Reset điểm số và cristal
     score = 0
+    cristal_score = 0
     
     # Xóa tất cả sprite
     all_sprites.empty()
     enemies.empty()
     bullets.empty()
+    cristal.empty()
     
     # Tạo lại người chơi
     player = Player()
@@ -357,15 +424,29 @@ while running:
     for hit in hits_bullet:
         score += 1  # Tăng điểm khi bắn trúng
         enemy = Enemy()
-        cristal_sprite = Cristal(hit.coins, hit.rect.x, hit.rect.y)
+        # Đảm bảo y >= 10 (hoặc giá trị phù hợp)
+        cristal_y = max(hit.rect.y, 10)
+        cristal_sprite = Cristal(hit.coins, hit.rect.x, cristal_y)
         all_sprites.add(enemy, cristal_sprite)
         enemies.add(enemy)
         cristal.add(cristal_sprite)
+        
+        # Tỉ lệ 20% rơi ra vật phẩm nâng cấp
+        if random.random() < 0.2:
+            upgrade_y = max(hit.rect.y, 10)
+            upgrade = Upgrade(hit.rect.x, upgrade_y)
+            all_sprites.add(upgrade)
+            upgrades.add(upgrade)
 
     # Kiểm tra va chạm player và Cristal
     hits_cristal = pygame.sprite.spritecollide(player, cristal, True)
     for hit in hits_cristal:
         cristal_score += hit.val
+
+    # Kiểm tra va chạm player và upgrade
+    hits_upgrade = pygame.sprite.spritecollide(player, upgrades, True)
+    for hit in hits_upgrade:
+        player.add_rocket()
 
     # Kiểm tra va chạm giữa người chơi và kẻ địch
     hits_enemy = pygame.sprite.spritecollide(player, enemies, False)

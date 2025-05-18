@@ -43,6 +43,10 @@ cristal_img = pygame.transform.scale(cristal_img, (17, 27))
 start_btn_img = pygame.image.load("assets-2/Start_BTN.png")
 replay_btn_img = pygame.image.load("assets-2/Replay_BTN.png")
 exit_btn_img = pygame.image.load("assets-2/Exit_BTN.png")
+shop_btn_img = pygame.image.load("assets-2/Shop_BTN.png")
+table_img = pygame.image.load("assets-2/Table.png")
+menu_btn_img = pygame.image.load("assets-2/Menu_BTN.png") 
+shop_title_img = pygame.image.load("assets-2/Shop.png")  
 
 # Load hình ảnh header
 header1_img = pygame.image.load("assets-2/Header1.png")
@@ -253,6 +257,31 @@ class Enemy(pygame.sprite.Sprite):
             self.rect.y = random.randrange(-150, -60)
             self.speedy = random.randrange(1, 4)
 
+# Class Shop
+class Shop:
+    def __init__(self):
+        self.image = pygame.transform.scale(shop_btn_img, (50, 50))
+        self.rect = self.image.get_rect()
+        self.rect.topright = (WIDTH - 10, 10)
+        self.is_hovered = False
+
+    def draw(self, surface):
+        if self.is_hovered:
+            img = self.image.copy()
+            img.fill((30, 30, 30, 0), special_flags=pygame.BLEND_RGB_ADD)
+            surface.blit(img, self.rect)
+        else:
+            surface.blit(self.image, self.rect)
+
+    def handle_event(self, event):
+        if event.type == pygame.MOUSEMOTION:
+            self.is_hovered = self.rect.collidepoint(event.pos)
+        elif event.type == pygame.MOUSEBUTTONDOWN:
+            if self.is_hovered:
+                shop_screen()  # Chuyển sang màn hình shop
+                return True
+        return False
+
 # Tạo sprite groups
 all_sprites = pygame.sprite.Group()
 enemies = pygame.sprite.Group()
@@ -260,8 +289,9 @@ bullets = pygame.sprite.Group()
 cristal = pygame.sprite.Group()
 upgrades = pygame.sprite.Group()  # Thêm group cho upgrade
 
-# Tạo người chơi
+# Tạo người chơi và shop
 player = Player()
+shop = Shop()  # Tạo instance của Shop
 all_sprites.add(player)
 
 # Tạo kẻ địch
@@ -270,6 +300,43 @@ for i in range(8):
     all_sprites.add(enemy)
     enemies.add(enemy)
 
+# Màn hình bắt đầu
+def start_screen():
+    screen.blit(bg_img, (0, 0))
+    # Vẽ hình SPACE GAME
+    screen.blit(header1_img, (WIDTH//2 - header1_img.get_width()//2, HEIGHT//2 - 170))
+    # Hiển thị điểm cao nhất
+    high_score_text = score_font.render(f"High Score: {high_score}", True, WHITE)
+    screen.blit(high_score_text, (WIDTH//2 - high_score_text.get_width()//2, HEIGHT//2 - 70))
+    # Tạo các nút
+    start_button = Button(WIDTH//2 - 100, HEIGHT//2, 200, 50, start_btn_img)
+    exit_button = Button(WIDTH//2 - 100, HEIGHT//2 + 70, 200, 50, exit_btn_img)
+    
+    # Tạo nút Shop ở góc phải trên
+    shop = Shop()
+    
+    waiting = True
+    while waiting:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            
+            if start_button.handle_event(event):
+                waiting = False
+            if exit_button.handle_event(event):
+                pygame.quit()
+                sys.exit()
+            # Xử lý sự kiện cho shop
+            shop.handle_event(event)
+        
+        # Vẽ các nút
+        start_button.draw(screen)
+        exit_button.draw(screen)
+        shop.draw(screen)  # Vẽ nút Shop
+        pygame.display.flip()
+
+# Màn hình game over
 def game_over_screen():
     global high_score
     
@@ -282,30 +349,34 @@ def game_over_screen():
     
     screen.blit(bg_img, (0, 0))
     # Vẽ YOU LOSE
-    screen.blit(header1_img, (WIDTH//2 - header1_img.get_width()//2, HEIGHT//2 - 180))
+    screen.blit(header1_img, (WIDTH//2 - header1_img.get_width()//2, HEIGHT//2 - 190))
     
     # Hiển thị điểm số
     score_text = score_font.render(f"Score: {score}", True, WHITE)
-    screen.blit(score_text, (WIDTH//2 - score_text.get_width()//2, HEIGHT//2 - 80))
+    screen.blit(score_text, (WIDTH//2 - score_text.get_width()//2, HEIGHT//2 - 100))
     
     # Hiển thị số cristal đã thu thập trong màn này
     cristal_text = score_font.render(f"Cristal: {cristal_score}", True, WHITE)
-    screen.blit(cristal_text, (WIDTH//2 - cristal_text.get_width()//2, HEIGHT//2 - 30))
+    screen.blit(cristal_text, (WIDTH//2 - cristal_text.get_width()//2, HEIGHT//2 - 50))
     
     # Hiển thị điểm cao nhất
     high_score_text = score_font.render(f"High Score: {high_score}", True, WHITE)
-    screen.blit(high_score_text, (WIDTH//2 - high_score_text.get_width()//2, HEIGHT//2 + 20))
+    screen.blit(high_score_text, (WIDTH//2 - high_score_text.get_width()//2, HEIGHT//2))
     
     # Các nút
     replay_w, replay_h = 60, 50
+    menu_w, menu_h = 60, 50
     exit_w, exit_h = 200, 50
     button_gap = 20
-    total_width = replay_w + button_gap + exit_w
+    
+    # Tính toán vị trí cho các nút
+    total_width = replay_w + button_gap + menu_w
     start_x = WIDTH//2 - total_width//2
-    y = HEIGHT//2 + 80
+    y = HEIGHT//2 + 60
     
     restart_button = Button(start_x, y, replay_w, replay_h, replay_btn_img)
-    quit_button = Button(start_x + replay_w + button_gap, y, exit_w, exit_h, exit_btn_img)
+    menu_button = Button(start_x + replay_w + button_gap, y, menu_w, menu_h, menu_btn_img)
+    quit_button = Button(WIDTH//2 - exit_w//2, y + replay_h + button_gap, exit_w, exit_h, exit_btn_img)
     
     waiting = True
     while waiting:
@@ -316,12 +387,17 @@ def game_over_screen():
             
             if restart_button.handle_event(event):
                 waiting = False
+            if menu_button.handle_event(event):
+                waiting = False
+                start_screen()
+                return
             if quit_button.handle_event(event):
                 pygame.quit()
                 sys.exit()
         
         # Vẽ các nút
         restart_button.draw(screen)
+        menu_button.draw(screen)
         quit_button.draw(screen)
         pygame.display.flip()
 
@@ -348,19 +424,25 @@ def reset_game():
         all_sprites.add(enemy)
         enemies.add(enemy)
 
-def start_screen():
-    screen.blit(bg_img, (0, 0))
-    # Vẽ hình SPACE GAME
-    screen.blit(header1_img, (WIDTH//2 - header1_img.get_width()//2, HEIGHT//2 - 180))
-    # Hiển thị điểm cao nhất
-    high_score_text = score_font.render(f"High Score: {high_score}", True, WHITE)
-    screen.blit(high_score_text, (WIDTH//2 - high_score_text.get_width()//2, HEIGHT//2 - 60))
-    # Hiển thị số Cristal đang có
-    total_cristal_text = score_font.render(f"Total Cristal: {total_cristal}", True, WHITE)
-    screen.blit(total_cristal_text, (WIDTH//2 - high_score_text.get_width()//2, HEIGHT//2 - 100))
-    # Tạo các nút
-    start_button = Button(WIDTH//2 - 100, HEIGHT//2, 200, 50, start_btn_img)
-    exit_button = Button(WIDTH//2 - 100, HEIGHT//2 + 70, 200, 50, exit_btn_img)
+# Màn hình shop
+def shop_screen():
+    # Tạo nút quay về menu
+    menu_button = Button(WIDTH - 60, 10, 50, 50, menu_btn_img)
+    
+    # Thiết lập bảng
+    table = pygame.transform.scale(table_img, (400, 500))
+    table_rect = table.get_rect()
+    table_rect.center = (WIDTH // 2, HEIGHT // 2)
+    
+    # Thiết lập hình chữ Shop
+    shop_title = pygame.transform.scale(shop_title_img, (100, 25))
+    shop_title_rect = shop_title.get_rect()
+    shop_title_rect.midtop = (table_rect.centerx, table_rect.top + 15)
+    
+    # Thiết lập hiển thị cristal
+    cristal_display = pygame.transform.scale(cristal_img, (20, 30))
+    cristal_rect = cristal_display.get_rect()
+    cristal_rect.topleft = (10, 10)
     
     waiting = True
     while waiting:
@@ -369,15 +451,22 @@ def start_screen():
                 pygame.quit()
                 sys.exit()
             
-            if start_button.handle_event(event):
+            if menu_button.handle_event(event):
                 waiting = False
-            if exit_button.handle_event(event):
-                pygame.quit()
-                sys.exit()
+                start_screen()
+                return
         
-        # Vẽ các nút
-        start_button.draw(screen)
-        exit_button.draw(screen)
+        # Vẽ
+        screen.blit(bg_img, (0, 0))
+        screen.blit(table, table_rect)
+        screen.blit(shop_title, shop_title_rect)
+        menu_button.draw(screen)
+        
+        # Vẽ hình cristal và số lượng
+        screen.blit(cristal_display, cristal_rect)
+        cristal_text = score_font.render(f"{total_cristal}", True, WHITE)
+        screen.blit(cristal_text, (cristal_rect.right + 5, cristal_rect.centery - cristal_text.get_height()//2))
+        
         pygame.display.flip()
 
 # Game loop
@@ -432,7 +521,7 @@ while running:
         cristal.add(cristal_sprite)
         
         # Tỉ lệ 20% rơi ra vật phẩm nâng cấp
-        if random.random() < 0.2:
+        if random.random() < 0.2 and (player.left_rockets + player.right_rockets) < 2:
             upgrade_y = max(hit.rect.y, 10)
             upgrade = Upgrade(hit.rect.x, upgrade_y)
             all_sprites.add(upgrade)

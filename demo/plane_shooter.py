@@ -302,6 +302,8 @@ for i in range(8):
 
 # Màn hình bắt đầu
 def start_screen():
+    load_high_score()
+    load_total_cristal()
     screen.blit(bg_img, (0, 0))
     # Vẽ hình SPACE GAME
     screen.blit(header1_img, (WIDTH//2 - header1_img.get_width()//2, HEIGHT//2 - 170))
@@ -389,8 +391,8 @@ def game_over_screen():
                 waiting = False
             if menu_button.handle_event(event):
                 waiting = False
+                add_total_cristal()
                 start_screen()
-                return
             if quit_button.handle_event(event):
                 pygame.quit()
                 sys.exit()
@@ -475,11 +477,6 @@ running = True
 mouse_pressed = False
 shoot_delay = 100
 last_shot = 0
-
-# Load điểm cao nhất khi bắt đầu game
-load_high_score()
-# Load total Cristal
-load_total_cristal()
 
 # Hiển thị màn hình bắt đầu
 start_screen()

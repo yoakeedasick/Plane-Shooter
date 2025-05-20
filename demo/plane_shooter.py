@@ -39,6 +39,10 @@ upgrade_img = pygame.transform.scale(upgrade_img, (30, 40))
 cristal_img = pygame.image.load("assets-2/Cristal_Icon.png")
 cristal_img = pygame.transform.scale(cristal_img, (17, 27))
 
+#Load ảnh mana
+mana_img = pygame.image.load("assets-2/mana.png")
+mana_img = pygame.transform.scale(mana_img, (17,17))
+
 # Load hình ảnh nút
 start_btn_img = pygame.image.load("assets-2/Start_BTN.png")
 replay_btn_img = pygame.image.load("assets-2/Replay_BTN.png")
@@ -287,6 +291,7 @@ all_sprites = pygame.sprite.Group()
 enemies = pygame.sprite.Group()
 bullets = pygame.sprite.Group()
 cristal = pygame.sprite.Group()
+manas = pygame.sprite.Group()
 upgrades = pygame.sprite.Group()  # Thêm group cho upgrade
 
 # Tạo người chơi và shop

@@ -303,7 +303,7 @@ for i in range(8):
 # Màn hình bắt đầu
 def start_screen():
     load_high_score()
-    load_total_cristal()
+
     screen.blit(bg_img, (0, 0))
     # Vẽ hình SPACE GAME
     screen.blit(header1_img, (WIDTH//2 - header1_img.get_width()//2, HEIGHT//2 - 170))
@@ -427,7 +427,8 @@ def reset_game():
         enemies.add(enemy)
 
 # Màn hình shop
-def shop_screen():
+def shop_screen():    
+    load_total_cristal()
     # Tạo nút quay về menu
     menu_button = Button(WIDTH - 60, 10, 50, 50, menu_btn_img)
     
@@ -512,10 +513,13 @@ while running:
         enemy = Enemy()
         # Đảm bảo y >= 10 (hoặc giá trị phù hợp)
         cristal_y = max(hit.rect.y, 10)
-        cristal_sprite = Cristal(hit.coins, hit.rect.x, cristal_y)
-        all_sprites.add(enemy, cristal_sprite)
+        # Tỉ lệ 50% rơi ra cristal
+        if random.random() < 0.3:
+            cristal_sprite = Cristal(random.choice([1,2,5]), hit.rect.x, cristal_y)
+            all_sprites.add(cristal_sprite)
+            cristal.add(cristal_sprite)
+        all_sprites.add(enemy)
         enemies.add(enemy)
-        cristal.add(cristal_sprite)
         
         # Tỉ lệ 20% rơi ra vật phẩm nâng cấp
         if random.random() < 0.2 and (player.left_rockets + player.right_rockets) < 2:

@@ -8,8 +8,8 @@ import os
 pygame.init()
 
 # Cấu hình màn hình
-WIDTH = 800
-HEIGHT = 600
+WIDTH = 500
+HEIGHT = 700
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption("Plane Shooter")
 
@@ -18,9 +18,9 @@ bg_img = pygame.image.load("assets-2/BG.png")
 bg_img = pygame.transform.scale(bg_img, (WIDTH, HEIGHT))
 
 # Load hình máy bay
-player_img = pygame.image.load("assets-2/Player_BTN.png")
+player_img = pygame.image.load("assets-2/Player.png")
 player_img = pygame.transform.scale(player_img, (100, 80))
-enemy_img = pygame.image.load("assets-2/Enemy_BTN.png")
+enemy_img = pygame.image.load("assets-2/Enemy.png")
 enemy_img = pygame.transform.scale(enemy_img, (60, 60))
 
 # Load hình ảnh đạn
@@ -44,15 +44,21 @@ start_btn_img = pygame.image.load("assets-2/Start_BTN.png")
 replay_btn_img = pygame.image.load("assets-2/Replay_BTN.png")
 exit_btn_img = pygame.image.load("assets-2/Exit_BTN.png")
 shop_btn_img = pygame.image.load("assets-2/Shop_BTN.png")
-table_img = pygame.image.load("assets-2/Table.png")
 menu_btn_img = pygame.image.load("assets-2/Menu_BTN.png") 
-shop_title_img = pygame.image.load("assets-2/Shop.png")  
+pause_btn_img = pygame.image.load("assets-2/Pause_BTN.png")
+continue_btn_img = pygame.image.load("assets-2/Continue_BTN.png")
+
+table_img = pygame.image.load("assets-2/Table.png")
 
 # Load hình ảnh header
-header1_img = pygame.image.load("assets-2/Header1.png")
-header1_img = pygame.transform.scale(header1_img, (500, 50))
-header2_img = pygame.image.load("assets-2/Header2.png")
-header2_img = pygame.transform.scale(header2_img, (450, 60))
+start_img = pygame.image.load("assets-2/Start.png")
+start_img = pygame.transform.scale(start_img, (400, 50))
+end_img = pygame.image.load("assets-2/End.png")
+end_img = pygame.transform.scale(end_img, (450, 60))
+shop_img = pygame.image.load("assets-2/Shop.png")
+shop_img = pygame.transform.scale(shop_img, (100, 25))
+pause_img = pygame.image.load("assets-2/Pause.png")
+pause_img = pygame.transform.scale(pause_img, (200, 40))
 
 # Màu sắc
 WHITE = (255, 255, 255)
@@ -65,11 +71,13 @@ score_font = pygame.font.Font(None, 36)  # Font cho điểm số
 # Biến điểm
 score = 0
 high_score = 0
+is_paused = False  # biến theo dõi trạng thái tạm dừng
+from_menu = False  # biến theo dõi nguồn gọi start_screen
+resume_time = 0  # biến theo dõi thời gian tiếp tục
 
-# Cristal, mana
+# Cristal
 cristal_score = 0
 total_cristal = 0
-mana = 0
 
 # File lưu điểm cao nhất
 SCORE_FILE = "high_score.json"
@@ -143,17 +151,32 @@ class Player(pygame.sprite.Sprite):
         self.speed = 8
         self.left_rockets = 0  # Số tên lửa bên trái
         self.right_rockets = 0  # Số tên lửa bên phải
+        self.last_pos = (WIDTH // 2, HEIGHT - 10)  # Lưu vị trí cuối cùng
 
     def update(self):
-        # Lấy vị trí chuột
-        mouse_pos = pygame.mouse.get_pos()
-        # Di chuyển máy bay đến vị trí chuột theo trục x
-        self.rect.centerx = mouse_pos[0]
+        current_time = pygame.time.get_ticks()
+        # Chỉ cho phép di chuyển sau khi đã qua thời gian chờ tiếp tục
+        if current_time - resume_time > 700:  # Đợi 700ms sau khi tiếp tục
+            # Lấy vị trí chuột
+            mouse_pos = pygame.mouse.get_pos()
+            # Di chuyển máy bay đến vị trí chuột theo cả trục x và y
+            self.rect.centerx = mouse_pos[0]
+            self.rect.centery = mouse_pos[1]
+            self.last_pos = (self.rect.centerx, self.rect.centery)
+        else:
+            # Giữ nguyên vị trí cuối cùng
+            self.rect.centerx = self.last_pos[0]
+            self.rect.centery = self.last_pos[1]
+
         # Giới hạn không cho máy bay đi ra ngoài màn hình
         if self.rect.left < 0:
             self.rect.left = 0
         if self.rect.right > WIDTH:
             self.rect.right = WIDTH
+        if self.rect.top < 0:
+            self.rect.top = 0
+        if self.rect.bottom > HEIGHT:
+            self.rect.bottom = HEIGHT
 
     def shoot(self):
         bullet = Bullet(self.rect.centerx, self.rect.top)
@@ -282,6 +305,33 @@ class Shop:
                 return True
         return False
 
+# Class Pause
+class Pause:
+    def __init__(self):
+        self.image = pygame.transform.scale(pause_btn_img, (50, 50))
+        self.rect = self.image.get_rect()
+        self.rect.bottomright = (WIDTH - 10, HEIGHT - 10)
+        self.is_hovered = False
+
+    def draw(self, surface):
+        if self.is_hovered:
+            img = self.image.copy()
+            img.fill((30, 30, 30, 0), special_flags=pygame.BLEND_RGB_ADD)
+            surface.blit(img, self.rect)
+        else:
+            surface.blit(self.image, self.rect)
+
+    def handle_event(self, event):
+        if event.type == pygame.MOUSEMOTION:
+            self.is_hovered = self.rect.collidepoint(event.pos)
+        elif event.type == pygame.MOUSEBUTTONDOWN:
+            if self.is_hovered:
+                pause_screen()
+                return True
+        return False
+
+
+
 # Tạo sprite groups
 all_sprites = pygame.sprite.Group()
 enemies = pygame.sprite.Group()
@@ -289,9 +339,9 @@ bullets = pygame.sprite.Group()
 cristal = pygame.sprite.Group()
 upgrades = pygame.sprite.Group()  # Thêm group cho upgrade
 
-# Tạo người chơi và shop
+# Tạo người chơi và pause button
 player = Player()
-shop = Shop()  # Tạo instance của Shop
+pause_button = Pause()  # Tạo instance của PauseButton
 all_sprites.add(player)
 
 # Tạo kẻ địch
@@ -302,11 +352,22 @@ for i in range(8):
 
 # Màn hình bắt đầu
 def start_screen():
+    global is_paused, from_menu
     load_high_score()
+
+    # Nếu đang tạm dừng và không phải từ menu, quay lại game
+    if is_paused and not from_menu:
+        is_paused = False
+        return
+    
+    # Nếu từ menu, reset game
+    if from_menu:
+        reset_game()
+        is_paused = False
 
     screen.blit(bg_img, (0, 0))
     # Vẽ hình SPACE GAME
-    screen.blit(header1_img, (WIDTH//2 - header1_img.get_width()//2, HEIGHT//2 - 170))
+    screen.blit(start_img, (WIDTH//2 - start_img.get_width()//2, HEIGHT//2 - 170))
     # Hiển thị điểm cao nhất
     high_score_text = score_font.render(f"High Score: {high_score}", True, WHITE)
     screen.blit(high_score_text, (WIDTH//2 - high_score_text.get_width()//2, HEIGHT//2 - 70))
@@ -338,6 +399,61 @@ def start_screen():
         shop.draw(screen)  # Vẽ nút Shop
         pygame.display.flip()
 
+# Màn hình tạm dừng
+def pause_screen():
+    global is_paused, from_menu, resume_time
+    is_paused = True  # Đánh dấu game đang tạm dừng
+    
+    # Kích thước nút
+    btn_w, btn_h = 60, 50
+    btn_gap = 20
+    total_width = btn_w * 3 + btn_gap * 2
+    start_x = WIDTH // 2 - total_width // 2
+    y = HEIGHT // 2 - 50
+
+    continue_button = Button(start_x, y, btn_w, btn_h, continue_btn_img)
+    replay_button = Button(start_x + btn_w + btn_gap, y, btn_w, btn_h, replay_btn_img)
+    menu_button = Button(start_x + (btn_w + btn_gap) * 2, y, btn_w, btn_h, menu_btn_img)
+
+    waiting = True
+    while waiting:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            
+            if continue_button.handle_event(event):
+                resume_time = pygame.time.get_ticks()  # Lưu thời điểm nhấn tiếp tục
+                waiting = False
+            if replay_button.handle_event(event):
+                waiting = False
+                reset_game()
+            if menu_button.handle_event(event):
+                waiting = False
+                from_menu = True
+                start_screen()
+                from_menu = False
+                return
+        
+        # Vẽ
+        screen.blit(bg_img, (0, 0))
+        all_sprites.draw(screen)
+        
+        # Vẽ lớp overlay tối
+        overlay = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+        overlay.fill((0, 0, 0, 128))
+        screen.blit(overlay, (0, 0))
+        
+        # Vẽ chữ PAUSE
+        screen.blit(pause_img, (WIDTH//2 - pause_img.get_width()//2, HEIGHT//2 - 120))
+        
+        # Vẽ các nút 
+        continue_button.draw(screen)
+        replay_button.draw(screen)
+        menu_button.draw(screen)
+        
+        pygame.display.flip()
+
 # Màn hình game over
 def game_over_screen():
     global high_score
@@ -351,7 +467,7 @@ def game_over_screen():
     
     screen.blit(bg_img, (0, 0))
     # Vẽ YOU LOSE
-    screen.blit(header1_img, (WIDTH//2 - header1_img.get_width()//2, HEIGHT//2 - 190))
+    screen.blit(end_img, (WIDTH//2 - end_img.get_width()//2, HEIGHT//2 - 190))
     
     # Hiển thị điểm số
     score_text = score_font.render(f"Score: {score}", True, WHITE)
@@ -438,8 +554,7 @@ def shop_screen():
     table_rect.center = (WIDTH // 2, HEIGHT // 2)
     
     # Thiết lập hình chữ Shop
-    shop_title = pygame.transform.scale(shop_title_img, (100, 25))
-    shop_title_rect = shop_title.get_rect()
+    shop_title_rect = shop_img.get_rect()
     shop_title_rect.midtop = (table_rect.centerx, table_rect.top + 15)
     
     # Thiết lập hiển thị cristal
@@ -462,7 +577,7 @@ def shop_screen():
         # Vẽ
         screen.blit(bg_img, (0, 0))
         screen.blit(table, table_rect)
-        screen.blit(shop_title, shop_title_rect)
+        screen.blit(shop_img, shop_title_rect)
         menu_button.draw(screen)
         
         # Vẽ hình cristal và số lượng
@@ -497,11 +612,15 @@ while running:
         elif event.type == pygame.MOUSEBUTTONUP:
             if event.button == 1:  # Chuột trái
                 mouse_pressed = False
+        # Xử lý sự kiện cho nút pause
+        pause_button.handle_event(event)
 
     # Bắn đạn khi giữ chuột và đã đủ thời gian chờ
     if mouse_pressed and current_time - last_shot > shoot_delay:
-        player.shoot()
-        last_shot = current_time
+        # Chỉ cho phép bắn sau khi đã qua thời gian chờ tiếp tục
+        if current_time - resume_time > 500:  # Đợi 500ms sau khi tiếp tục
+            player.shoot()
+            last_shot = current_time
 
     # Update
     all_sprites.update()
@@ -553,6 +672,9 @@ while running:
     cristal_score_text = score_font.render(f"Cristal: {cristal_score}", True, WHITE)
     screen.blit(cristal_score_text, (10,50))
     screen.blit(score_text, (10, 10))
+    
+    # Vẽ nút pause
+    pause_button.draw(screen)
     
     pygame.display.flip()
 
